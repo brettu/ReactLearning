@@ -1,0 +1,23 @@
+{
+  "name": "react-d3",
+  "version": "1.0.0",
+  "authors": [
+    "BrettU"
+  ],
+  "description": "Trial ReactJS application",
+  "main": "index.html",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "d3": "~3.5.5",
+    "react": "~0.13.1",
+    "bootstrap": "~3.3.4",
+    "lodash": "~3.5.0"
+  }
+}
