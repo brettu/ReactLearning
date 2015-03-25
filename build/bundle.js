@@ -40655,8 +40655,164 @@ module.exports = warning;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],4:[function(require,module,exports){
 var React = require("./../bower_components/react/react.js"),
+    d3 = require("./../bower_components/d3/d3.js");
+
+var Histogram = React.createClass({displayName: "Histogram",
+
+  componentWillMount: function() {
+    this.histogram = d3.layout.histogram();
+    this.widthScale = d3.scale.linear();
+    this.yScale = d3.scale.linear();
+    this.update_d3(this.props);
+  },
+
+  componentWillReceiveProps: function(newProps) {
+    this.update_d3(newProps);
+  },
+
+  update_d3: function(props) { 
+    this.histogram
+        .bins(props.bins)
+        .value(this.props.value);
+
+    var bars = this.histogram(props.data),
+        counts = bars.map(function (d) { return d.y; });
+
+    this.setState({bars: bars});
+
+    this.widthScale
+         .domain([d3.min(counts), d3.max(counts)]) 
+         .range([9, props.width-props.axisMargin]);
+
+    this.yScale
+        .domain([0, d3.max(bars.map(function (d) { return d.x+d.dx; }))]) 
+        .range([0, props.height-props.topMargin-props.bottomMargin]);
+  },
+
+  makeBar: function (bar) {
+    var percent = bar.y/this.props.data.length*100;
+    var props = {
+                  percent: percent,
+                  x: this.props.axisMargin,
+                  y: this.yScale(bar.x),
+                  width: this.widthScale(bar.y),
+                  height: this.yScale(bar.dx),
+                  key: "histogram-bar-"+bar.x+"-"+bar.y
+                }
+    return (
+      React.createElement(HistogramBar, React.__spread({},  props))
+    );
+  },
+
+  render: function() {
+    var translate = "translate(0, "+this.props.topMargin+")";
+    return (
+      React.createElement("g", {className: "histogram", transform: translate}, 
+        React.createElement("g", {className: "bars"}, 
+          this.state.bars.map(this.makeBar)
+        ), 
+        React.createElement(Axis, React.__spread({},  this.props, {data: this.state.bars}))
+      )
+    ); 
+  }
+});
+
+var HistogramBar = React.createClass({displayName: "HistogramBar",
+  render: function () {
+    var translate = "translate(" + this.props.x + "," + this.props.y + ")",
+      label = this.props.percent.toFixed(0)+'%';
+
+    if (this.props.percent < 1) {
+      label = this.props.percent.toFixed(2)+"%";
+    }
+
+    if (this.props.width < 20) {
+      label = label.replace("%", "");
+    }
+
+    if (this.props.width < 10) {
+      label = "";
+    }
+
+    return (
+      React.createElement("g", {transform: translate, className: "bar"}, 
+        React.createElement("rect", {
+          width: this.props.width, 
+          height: this.props.height-2, 
+          transform: "translate(0, 1)"}
+        ), 
+        React.createElement("text", {textAnchor: "end", 
+          x: this.props.width-5, 
+          y: this.props.height/2+3}, 
+          label
+         )
+      )
+    );
+}
+});
+
+var Axis = React.createClass({displayName: "Axis",
+  componentWillMount: function() {
+    this.yScale = d3.scale.linear();
+    this.axis = d3.svg.axis()
+      .scale(this.yScale)
+      .orient("left")
+      .tickFormat(function (d) {
+         return "$"+this.yScale.tickFormat()(d);
+      }.bind(this));
+    this.update_d3(this.props)
+  },
+
+  componentWillReceievPropery: function(newProps){
+    this.update_d3(newProps);
+  },
+
+  update_d3: function(props){
+
+    this.yScale.domain([0, 
+      d3.max(props.data.map(
+        function (d) { return d.x+d.dx; }))])
+    .range([0, props.height-props.topMargin-props.bottomMargin]);
+
+    this.axis
+      .ticks(props.data.length)
+      .tickValues(
+        props.data
+        .map(function (d) { return d.x })
+          .concat(props.data[props.data.length-1].x
+          +props.data[props.data.length-1].dx));
+  },
+
+  componentDidUpdate: function() { this.renderAxis(); },
+  componentDidMount: function() { this.renderAxis(); },
+
+  renderAxis: function() {
+    var node = this.getDOMNode();
+
+    d3.select(node).call(this.axis);
+  },
+
+  render: function(){
+    var translate = "translate("+(this.props.axisMargin-3)+", 0)";
+    return (
+      React.createElement("g", {className: "axis", transform: translate}
+      )
+    );
+  }
+  
+});
+
+module.exports = {
+  Histogram: Histogram,
+  Axis: Axis
+};
+
+
+},{"./../bower_components/d3/d3.js":1,"./../bower_components/react/react.js":3}],5:[function(require,module,exports){
+var React = require("./../bower_components/react/react.js"),
     _ = require("./../bower_components/lodash/lodash.js"),
     d3 = require("./../bower_components/d3/d3.js");
+    drawers = require('./drawers.jsx');
 
 var H1BGraph = React.createClass({displayName: "H1BGraph",
   
@@ -40671,16 +40827,14 @@ var H1BGraph = React.createClass({displayName: "H1BGraph",
   loadRawData: function() {
     var dateFormat = d3.time.format("%m/%d/%Y");
     d3.csv(this.props.url)
-
       .row(function (d) {
         if (!d['base salary']){
           return null;
         }
-
         return {
           employer: d.employer,
-          submit_date: dateFormat.parse.d(['submit date']),
-          start_date: dateFormat.parse.d(['start date']),
+          submit_date: dateFormat.parse(d['submit date']),
+          start_date: dateFormat.parse(d['start date']),
           case_status: d['case status'],
           job_title: d['job title'],
           base_salary: Number(d['base salary']),
@@ -40688,7 +40842,6 @@ var H1BGraph = React.createClass({displayName: "H1BGraph",
           city: d.city,
           state: d.state
         };
-
       }.bind(this))
 
       .get(function (error, rows){
@@ -40709,11 +40862,21 @@ var H1BGraph = React.createClass({displayName: "H1BGraph",
       );
     }
 
+    var params = {
+      bins: 20,
+      width: 500,
+      height: 500,
+      axisMargin: 83,
+      topMargin: 10,
+      bottomMargin: 5,
+      value: function (d) { return d.base_salary; } 
+    }, fullWidth = 700;
+
     return (
       React.createElement("div", {className: "row"}, 
         React.createElement("div", {className: "col-md-12"}, 
-          React.createElement("svg", {width: "700", height: "500"}
-
+          React.createElement("svg", {width: fullWidth, height: params.height}, 
+            React.createElement(drawers.Histogram, React.__spread({},  params, {data: this.state.rawData}))
           )
         )
       )
@@ -40728,4 +40891,4 @@ React.render(
 );
 
 
-},{"./../bower_components/d3/d3.js":1,"./../bower_components/lodash/lodash.js":2,"./../bower_components/react/react.js":3}]},{},[4]);
+},{"./../bower_components/d3/d3.js":1,"./../bower_components/lodash/lodash.js":2,"./../bower_components/react/react.js":3,"./drawers.jsx":4}]},{},[5]);

@@ -1,6 +1,7 @@
 var React = require('react'),
     _ = require('lodash'),
     d3 = require('d3');
+    drawers = require('./drawers.jsx');
 
 var H1BGraph = React.createClass({
   
@@ -15,16 +16,14 @@ var H1BGraph = React.createClass({
   loadRawData: function() {
     var dateFormat = d3.time.format("%m/%d/%Y");
     d3.csv(this.props.url)
-
       .row(function (d) {
         if (!d['base salary']){
           return null;
         }
-
         return {
           employer: d.employer,
-          submit_date: dateFormat.parse.d(['submit date']),
-          start_date: dateFormat.parse.d(['start date']),
+          submit_date: dateFormat.parse(d['submit date']),
+          start_date: dateFormat.parse(d['start date']),
           case_status: d['case status'],
           job_title: d['job title'],
           base_salary: Number(d['base salary']),
@@ -32,7 +31,6 @@ var H1BGraph = React.createClass({
           city: d.city,
           state: d.state
         };
-
       }.bind(this))
 
       .get(function (error, rows){
@@ -53,11 +51,21 @@ var H1BGraph = React.createClass({
       );
     }
 
+    var params = {
+      bins: 20,
+      width: 500,
+      height: 500,
+      axisMargin: 83,
+      topMargin: 10,
+      bottomMargin: 5,
+      value: function (d) { return d.base_salary; } 
+    }, fullWidth = 700;
+
     return (
       <div className="row">
         <div className="col-md-12">
-          <svg width="700" height="500">
-
+          <svg width={fullWidth} height={params.height}>
+            <drawers.Histogram {...params} data={this.state.rawData} />
           </svg>
         </div>
       </div>
