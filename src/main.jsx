@@ -1,7 +1,8 @@
 var React = require('react'),
     _ = require('lodash'),
-    d3 = require('d3');
-    drawers = require('./drawers.jsx');
+    d3 = require('d3'),
+    drawers = require('./drawers.jsx'),
+    Controls = require('./controls.jsx');
 
 var H1BGraph = React.createClass({
   
@@ -10,7 +11,11 @@ var H1BGraph = React.createClass({
   },
 
   getInitialState: function() {
-    return {rawData: []};
+    return {rawData: [], dataFilter: function() { return true; }};
+  },
+
+  updateDataFilter: function (filter) {
+    this.setState({dataFilter: filter});
   },
 
   loadRawData: function() {
@@ -61,13 +66,18 @@ var H1BGraph = React.createClass({
       value: function (d) { return d.base_salary; } 
     }, fullWidth = 700;
 
+    var filteredData = this.state.rawData.filter(this.state.dataFilter);
+
     return (
-      <div className="row">
-        <div className="col-md-12">
-          <svg width={fullWidth} height={params.height}>
-            <drawers.Histogram {...params} data={this.state.rawData} />
-          </svg>
+      <div>
+        <div className="row">
+          <div className="col-md-12">
+            <svg width={fullWidth} height={params.height}>
+              <drawers.Histogram {...params} data={filteredData} />
+            </svg>
+          </div>
         </div>
+        <Controls data={this.state.rawData} updateDataFilter={this.updateDataFilter} />
       </div>
     );
   }
